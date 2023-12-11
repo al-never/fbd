@@ -16,22 +16,18 @@ public class Main {
     public static void main(String[] args) throws IOException, InterruptedException {
 
 
-        //ParseFromDownloadPages.getWork();
-
         /*String pathToFileWithListOfAuthors = "C:\\Users\\Admin\\Downloads\\Авторы.txt";
         Set<String> authorsSet = new HashSet<>();
-        authorsSet = ParseFromDownloadPages.getAuthorsFromDownloadPages(pathToFileWithListOfAuthors);
+        authorsSet = ParseFromDownloadPages.getAuthorsFromDownloadPages(pathToFileWithListOfAuthors);*/
 
-        for (String a:authorsSet) {
-            ParseFromWeb.getWorkFromWeb(a);
-        }*/
 
-        ParseFromDownloadPages.getCollectionsFromDownloadPages();
+        //String path = "https://asdfg.net/authors/486110/profile/works?p=1";
+        //ParseFromWeb.getWorksOfAuthorFromWeb(path);
 
         //Set<String> worksSetLite = new HashSet<>();
-        //worksSetLite = ParseFromWeb.getWorkFromWeb("https://asdfghj.net/authors/486110/profile/works?p=1");
+        //worksSetLite = ParseFromWeb.getWorkFromWeb("https://asdfg.net/authors/486110/profile/works?p=1");
 
-
+        ParseFromDownloadPages.getCollectionsFromDownloadPages();
 
     }
 }
