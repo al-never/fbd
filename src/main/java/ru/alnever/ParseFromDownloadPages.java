@@ -16,7 +16,7 @@ public class ParseFromDownloadPages {
     public static Set<String> getAuthorsFromDownloadPages(String path) throws IOException {
         // сюда загружать путь к текстовому файлу с перечислением в столбик путей к сохраненным заранее страницам со списком подписок на авторов
         // вида https://asdfg.net/home/favourites/authors?p=1
-        // в итоге получаем список ссылок на скачивание всех работ одного автора
+        // в итоге получаем список авторов вида https://asdfg.net/authors/486110/profile/works?p=1
 
         List<String> authors = new ArrayList<>();
         String fileName;
@@ -86,55 +86,75 @@ public class ParseFromDownloadPages {
         }
         reader.close();
 
-        List<String> listWorks = new ArrayList<>();
-        Set<String> worksSet = new HashSet<>();
+        Set<String> worksSetFirstPage = new HashSet<>();
+        Set<String> worksSetFullVersion = new HashSet<>();
 
         // для каждого пути к загруженным заранее страницам со списком работ автора читаем из файла строки
         for (String p : paths) {
-            BufferedReader bufferedReader = new BufferedReader(new FileReader(path));
-            String line;
-            while (bufferedReader.ready()) {
-                line = bufferedReader.readLine();
-                listWorks.add(line);
+            File file = new File(p);
+            try {
+                Document document = Jsoup.parse(file);
+
+                var author = document.select("div.user-name").text();
+                authorName = author.toString();
+                System.out.println("Имя автора = " + authorName);
+                var pages = document.select("div.paging-description").text();
+                String[] words = pages.split("из ");
+                int pagesCount = Integer.parseInt(words[words.length - 1]);
+                System.out.println("Количество страниц с работами у автора = " + pagesCount);
+
+                //из каждого сохраненного в список файла вытаскиваем ссылки на работы и приводим их в нужный вид для ручного скачивания - на полную версию для печати
+                Elements links = document.select("a[href]");
+                for (Element link : links) {
+                    String work = link.attr("abs:href");
+                    if (work.contains("https://asdfg.net/readfic/")) {
+                        worksSetFirstPage.add(work); //этот список нужен для дальнейшей автоматизированной закачки
+                        work = work + "/all-parts#all-parts-content";
+                        worksSetFullVersion.add(work); //этот список нужен для дальнейшего ручного сохранения версий для печати
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
-            bufferedReader.close();
         }
 
-        //из каждого сохраненного в список файла вытаскиваем ссылки на работы и приводим их в нужный вид для ручного скачивания - на полную версию для печати
-        for (String l:listWorks) {
-            if (l.contains("visit-link\" data-savepage-href=\"/readfic/")) {
-                l = l.substring(l.indexOf("<"), l.indexOf(">"));
-                l = l.replace("<a class=\"visit-link\" data-savepage-href=\"/readfic/", "");
-                l = l.replace("\" href=\"", "?");
-                l = l.substring(l.indexOf("?") + 1, l.indexOf("\""));
-                l = l + "/all-parts#all-parts-content";
-                worksSet.add(l);
-            }
-            if (l.contains("visit-link\" href=\"https://asdfg.net/readfic/")) {
-                l = l.substring(l.indexOf("<"), l.indexOf(">"));
-                l = l.replace("<a class=\"visit-link\" href=\"", "");
-                l = l.substring(0, l.indexOf("\""));
-                l = l + "/all-parts#all-parts-content";
-                worksSet.add(l);
-            }
-            if (l.contains("<title>")) {
-                l = l.substring(l.indexOf(">") + 1, l.indexOf(" – профиль"));
-                authorName = l;
-                System.out.println("имя автора " + l);
-            }
+        for (String l:worksSetFirstPage) {
+            System.out.println("worksSetFirstPage " + l);
         }
-        System.out.println("Строки отсортированы");
-
-        for (String l:worksSet) {
-            System.out.println("worksSet " + l);
+        for (String l:worksSetFullVersion) {
+            System.out.println("worksSetFullVersion " + l);
         }
 
-        System.out.println("Строки отформатированы под скачивание, количество работ автора - " + worksSet.size());
-        // выгрузка файла со списками на диск
-        String pathFolder = "C:\\Users\\Admin\\Downloads\\" + authorName;
-        Files.createDirectories(Paths.get(pathFolder));
-        String pathFile = "C:\\Users\\Admin\\Downloads\\" + authorName + "\\" + authorName + ".txt";
-        Files.createFile(Paths.get(pathFile));
+        System.out.println("Строки отформатированы под скачивание, количество работ автора - " + worksSetFirstPage.size());
+
+         //выгрузка файла со списками на диск
+            try {
+                String pathFolder = "C:\\Users\\Admin\\Downloads\\" + authorName;
+                Files.createDirectories(Paths.get(pathFolder));
+                String pathFileLite = "C:\\Users\\Admin\\Downloads\\" + authorName + "\\" + authorName + "-FirstPage.txt";
+                Files.createFile(Paths.get(pathFileLite));
+                String pathFileFull = "C:\\Users\\Admin\\Downloads\\" + authorName + "\\" + authorName + "-FullVersion.txt";
+                Files.createFile(Paths.get(pathFileFull));
+
+                BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(pathFileLite));
+                bufferedWriter.write(authorName + System.lineSeparator());
+                bufferedWriter.write("Количество работ автора = " + worksSetFirstPage.size() + System.lineSeparator());
+
+                for (String w : worksSetFirstPage) {
+                    bufferedWriter.write(w + System.lineSeparator());
+                }
+                bufferedWriter.close();
+
+                BufferedWriter bufferedWriter2 = new BufferedWriter(new FileWriter(pathFileFull));
+                bufferedWriter2.write(authorName + System.lineSeparator());
+                bufferedWriter2.write("Количество работ автора = " + worksSetFullVersion.size() + System.lineSeparator());
+                for (String w : worksSetFullVersion) {
+                    bufferedWriter2.write(w + System.lineSeparator());
+                }
+                bufferedWriter2.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
     }
 

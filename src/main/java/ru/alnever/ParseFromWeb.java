@@ -8,10 +8,7 @@ import org.jsoup.select.Elements;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class ParseFromWeb {
 
@@ -132,7 +129,7 @@ public class ParseFromWeb {
 
     public static void getWorksInCollectionFromWeb() {
         //получаем на вход путь к папке, в которую будем сохранять коллекцию, и ссылку на саму публичную коллекцию вида https://asdfg.net/collections/4780562
-        //на выходе - скачанная в папку по имени сборника коллекция работ
+        //на выходе - скачанный в папку по имени сборника текстовый файл со ссылками на все работы сборника вида https://asdfg.net/readfic/5825121
 
         String uri = "https://asdfg.net/collections/4780562";
 
@@ -192,10 +189,12 @@ public class ParseFromWeb {
 
     public static void getTextFromWeb() throws IOException {
         //загружаем все тексты автора
-        //String uri = "https://asdfg.net/collections/4780562";
-        String uri = "https://asdfg.net/readfic/5825121";
+ 
+        //String uri = "https://asdfg.net/readfic/5825121/19287575"; //одна часть из работы 
+        String uri = "https://asdfg.net/readfic/5825121"; // содержание      
 
-        Set<String> worksSetFromCollections = new HashSet<>();
+
+        List<String> partsWork = new ArrayList<>(); //сюда записываются ссылки на главы работы
 
         try {
             var document = Jsoup
@@ -203,23 +202,198 @@ public class ParseFromWeb {
                     .userAgent("Mozilla")
                     .get();
 
+//            File file = new File(uri3);
+//            Document document = Jsoup.parse(file);
+
             //получаем весь документ:
-            String webpage = document.html();
+            //String webpage = document.html();
             //Element el = document.html();
             //System.out.print(document);
 
             //убрать переносы типа CRLF в тексте
+            String nameWork;
+            String nameAuthor;
+            var author = document.selectFirst("a.creator-username").text();
+            nameAuthor = author.toString();
+            var work = document.select("title").text();
+            nameWork = work.toString().replaceAll("\\r\\n", "").replaceAll(" +", " ");
+            System.out.println("Имя автора = " + nameAuthor);
+            System.out.println(nameWork);
             document.outputSettings(new Document.OutputSettings().prettyPrint(false));
-            String s = document.outerHtml().replaceAll("\\r\\n", "<br>");
-            System.out.print(s);
+
+
+
+//            if (uri3.contains("all-parts#all-parts-content")) {
+//                try {
+//                    BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter("C:\\Users\\Admin\\Downloads\\Сборники\\" + nameWork + ", автор " + nameAuthor + ".htm"));
+//                    bufferedWriter.write(s);
+//                    bufferedWriter.close();
+//                    return;
+//                } catch (Exception e) {
+//                    e.printStackTrace();
+//                }
+//            }
+            Elements link = document.select("a.part-link");            
+            boolean flag = link.size() == 0;
+            //System.out.println(flag);
+
+            if (flag)  {
+                System.out.println("Работает при объеме работы из одной части");
+                for( Element element : document.select("div.fb-ads-block") )
+                {
+                    element.remove();
+                }
+                for( Element element : document.select("div.mb-15") )
+                {
+                    element.remove();
+                }
+                for( Element element : document.select("div.navigation-to-fanfic-parts-container") )
+                {
+                    element.remove();
+                }
+                for( Element element : document.select("nav.nav-info") )
+                {
+                    element.remove();
+                }
+                for( Element element : document.select("div.help-box") )
+                {
+                    element.remove();
+                }
+                for( Element element : document.select("div.blog-area") )
+                {
+                    element.remove();
+                }
+
+                String str = document.outerHtml().replaceAll("\\r\\n", "<br>");
+                try {
+                    BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter("C:\\Users\\Admin\\Downloads\\Сборники\\" + nameWork + ", автор " + nameAuthor + ".htm"));
+                    bufferedWriter.write(str);
+                    bufferedWriter.close();
+                    return;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
+            System.out.println("Работает при содержании");
+            String str = document.outerHtml().replaceAll("\\r\\n", "<br>");
+
+            for (Element element:link) {
+                String url = element.attr("abs:href"); //чтобы получить полные ссылки из неполных
+                if (!url.contains("all-parts-content") & !partsWork.contains(url)) {
+                    partsWork.add(url);
+                }
+            }
+
+
+            var document2 = Jsoup
+                    .connect(partsWork.get(0))
+                    .timeout(10000)
+                    .userAgent("Mozilla")
+                    .get();
+
+            //System.out.print(document2);
+
+            document2.outputSettings(new Document.OutputSettings().prettyPrint(false));
+            for( Element element : document2.select("div.fb-ads-block") )
+            {
+                element.remove();
+            }
+            for( Element element : document2.select("div.mb-15") )
+            {
+                element.remove();
+            }
+            for( Element element : document2.select("div.navigation-to-fanfic-parts-container") )
+            {
+                element.remove();
+            }
+            for( Element element : document2.select("nav.nav-info") )
+            {
+                element.remove();
+            }
+            for( Element element : document2.select("div.help-box") )
+            {
+                element.remove();
+            }
+            for( Element element : document2.select("div.blog-area") )
+            {
+                element.remove();
+            }
+            String str2 = document2.outerHtml().replaceAll("\\r\\n", "<br>");
+            String[] strings = str2.split("\n");
+
+            List<String> allWork = new ArrayList<>();
+            for (int i = 0; i < strings.length; i++) {
+                allWork.add(strings[i]);
+            }            
+
+            System.out.print("Часть 1 работы загружена" + System.lineSeparator());
+
+            int counter = 0;
+            for (int i = 1; i < partsWork.size(); i++) {
+                System.out.print("Начинаю загружать часть " + (i + 1) + " из " + partsWork.size() + System.lineSeparator());
+                try {
+                    var document3 = Jsoup
+                            .connect(partsWork.get(i))
+                            .timeout(10000)
+                            .userAgent("Mozilla")
+                            .get();
+
+                    int fin = allWork.lastIndexOf("            </article>") - 1;
+
+                    document3.outputSettings(new Document.OutputSettings().prettyPrint(false));
+                    for( Element element : document3.select("div.fb-ads-block") )
+                    {
+                        element.remove();
+                    }
+                    for( Element element : document3.select("div.mb-15") )
+                    {
+                        element.remove();
+                    }
+                    for( Element element : document3.select("div.navigation-to-fanfic-parts-container") )
+                    {
+                        element.remove();
+                    }
+                    for( Element element : document3.select("nav.nav-info") )
+                    {
+                        element.remove();
+                    }
+                    for( Element element : document3.select("div.help-box") )
+                    {
+                        element.remove();
+                    }
+                    for( Element element : document3.select("div.blog-area") )
+                    {
+                        element.remove();
+                    }
+                    String str3 = document3.select("article.mb-15").outerHtml().replaceAll("\\r\\n", "<br>");
+                    allWork.add(fin, str3);
+                    System.out.print("Часть " + (i + 1) + " из " + partsWork.size() + " загружена" + System.lineSeparator());
+                    Thread.sleep(1000);
+                } catch (Exception e) {
+                    System.out.println("Часть " + i + " из " + partsWork.size() + " утеряна!" + System.lineSeparator());
+                    counter++;
+                    if (counter == 5) {
+                        System.out.println("Количество попыток превысило лимит, работа не загружена!" + System.lineSeparator());
+                        break;
+                    }
+                    i--;
+                }
+                //System.out.println(counter);
+            }
+
+
 
             try {
-                BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter("C:\\Users\\Admin\\Downloads\\Сборники\\123.html"));
-                bufferedWriter.write(s);
+                BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter("C:\\Users\\Admin\\Downloads\\Сборники\\" + nameWork + ", автор " + nameAuthor + ".html"));
+                for (String line : allWork) {
+                    bufferedWriter.write(line);
+                }
                 bufferedWriter.close();
             } catch (Exception e) {
                 e.printStackTrace();
             }
+
 
         } catch (Exception e) {
             e.printStackTrace();
